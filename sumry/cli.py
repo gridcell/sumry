@@ -37,6 +37,18 @@ def main(
         "--verbose", 
         "-v",
         help="Show detailed information"
+    ),
+    select: Optional[str] = typer.Option(
+        None,
+        "--select",
+        "-s",
+        help="Select specific components (e.g., sheet names for Excel, separated by commas)"
+    ),
+    count: Optional[int] = typer.Option(
+        None,
+        "--count",
+        "-n",
+        help="Display N sample records in table format (default: 5)"
     )
 ):
     """
@@ -59,26 +71,29 @@ def main(
         raise typer.Exit(1)
     
     try:
+        # Set default count to 5 if count option is used without value
+        sample_count = 5 if count is not None and count <= 0 else count
+        
         if file_type == "CSV":
-            summary = read_csv(file_path, verbose)
+            summary = read_csv(file_path, verbose, sample_count)
         elif file_type == "Excel":
-            summary = read_excel(file_path, verbose)
+            summary = read_excel(file_path, verbose, select, sample_count)
         elif file_type == "GeoJSON":
-            summary = read_geojson(file_path, verbose)
+            summary = read_geojson(file_path, verbose, sample_count)
         elif file_type == "Shapefile":
-            summary = read_shapefile(file_path, verbose)
+            summary = read_shapefile(file_path, verbose, sample_count)
         else:
             console.print(f"[bold red]Error:[/bold red] Handler not implemented for {file_type}")
             raise typer.Exit(1)
             
-        display_summary(summary, file_type, verbose)
+        display_summary(summary, file_type, verbose, sample_count)
         
     except Exception as e:
         console.print(f"[bold red]Error reading file:[/bold red] {str(e)}")
         raise typer.Exit(1)
 
 
-def display_summary(summary: dict, file_type: str, verbose: bool):
+def display_summary(summary: dict, file_type: str, verbose: bool, sample_count: Optional[int] = None):
     """Display the file summary using Rich formatting."""
     
     panel = Panel.fit(
@@ -100,6 +115,19 @@ def display_summary(summary: dict, file_type: str, verbose: bool):
     
     console.print(table)
     
+    # Handle multiple sheets if present
+    if "sheets" in summary:
+        for sheet_name, sheet_summary in summary["sheets"].items():
+            console.print(f"\n[bold cyan]Sheet: {sheet_name}[/bold cyan]")
+            _display_sheet_summary(sheet_summary, verbose, sample_count)
+        return
+    
+    # Single sheet/file display
+    _display_sheet_summary(summary, verbose, sample_count)
+
+
+def _display_sheet_summary(summary: dict, verbose: bool, sample_count: Optional[int] = None):
+    """Display summary for a single sheet or file."""
     if "columns" in summary and summary["columns"]:
         console.print("\n[bold cyan]Columns/Fields:[/bold cyan]")
         col_table = Table(show_header=True, box=None)
@@ -149,6 +177,24 @@ def display_summary(summary: dict, file_type: str, verbose: bool):
             geo_table.add_row(key, str(value))
         
         console.print(geo_table)
+    
+    # Display sample data if count option is used
+    if sample_count is not None and "sample_data" in summary:
+        console.print(f"\n[bold cyan]Sample Records (showing {sample_count}):[/bold cyan]")
+        sample_table = Table(show_header=True, box=None)
+        
+        # Add columns based on the data
+        if summary["sample_data"]:
+            # Get column names from first row
+            columns = list(summary["sample_data"][0].keys())
+            for col in columns:
+                sample_table.add_column(col, style="white", no_wrap=False)
+            
+            # Add data rows
+            for row in summary["sample_data"]:
+                sample_table.add_row(*[str(row.get(col, "")) for col in columns])
+        
+        console.print(sample_table)
 
 
 if __name__ == "__main__":
