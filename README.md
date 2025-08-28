@@ -6,7 +6,10 @@ A CLI utility tool for summarizing various data sources.
 
 - **Multi-format support**: CSV, Excel (.xlsx, .xls, .xlsm), GeoJSON, and Shapefiles
 - **Beautiful output**: Rich-formatted tables and panels for clear, readable summaries
+- **JSON output**: Export summaries as JSON for programmatic use with `--json` flag
 - **Verbose mode**: Additional statistics and sample data with `-v` flag
+- **Sample records**: Display sample data rows with `--count` option
+- **Sheet selection**: Choose specific Excel sheets with `--select` option
 - **Fast and lightweight**: Built with performance in mind
 - **Clean output**: No unnecessary warnings or library messages in standard mode
 
@@ -41,13 +44,27 @@ uv run sumry spreadsheet.xlsx
 uv run sumry boundaries.shp
 ```
 
-### Verbose mode
-
-Use the `--verbose` or `-v` flag to see additional information including sample values and statistics:
+### Command-line Options
 
 ```bash
+# Verbose mode - show additional statistics and sample values
 uv run sumry data.csv --verbose
 uv run sumry data.csv -v
+
+# Display sample records (default: 5 rows)
+uv run sumry data.csv --count 10
+uv run sumry data.csv -n 10
+
+# Select specific Excel sheets
+uv run sumry spreadsheet.xlsx --select "Sheet1,Sheet3"
+uv run sumry spreadsheet.xlsx -s "Sheet1"
+
+# Output as JSON
+uv run sumry data.csv --json
+uv run sumry data.csv -j
+
+# Combine options
+uv run sumry data.csv -v -n 5 --json
 ```
 
 ## Output Examples
@@ -74,7 +91,27 @@ Columns/Fields:
 Includes sample values and statistics for each column:
 - Numeric columns: min, max, mean, unique count
 - Text columns: unique count, most common value
-- Sample values: first 5 non-null values
+- Sample values: first 3 non-null values
+
+### JSON Output
+Export summaries in JSON format for integration with other tools:
+
+```bash
+# Output JSON to file
+uv run sumry data.csv --json > summary.json
+
+# Pipe to jq for processing
+uv run sumry data.csv --json | jq '.columns[] | .name'
+
+# Get just the basic info
+uv run sumry data.csv --json | jq '.basic_info'
+```
+
+JSON output includes:
+- Basic file information (rows, columns, memory usage)
+- Column names and types
+- Statistics (when using verbose mode)
+- Sample data (when using count option)
 
 ### GeoJSON/Shapefile Output
 Includes additional geometry information:
@@ -83,6 +120,16 @@ Includes additional geometry information:
 - Total area (for polygons)
 - Total length (for lines)
 - Coordinate Reference System (CRS)
+
+## CLI Options Reference
+
+| Option | Short | Description | Example |
+|--------|-------|-------------|---------|
+| `--verbose` | `-v` | Show detailed statistics and sample values | `sumry data.csv -v` |
+| `--count N` | `-n N` | Display N sample records in table format | `sumry data.csv -n 10` |
+| `--select` | `-s` | Select specific Excel sheets (comma-separated) | `sumry file.xlsx -s "Sheet1,Sheet2"` |
+| `--json` | `-j` | Output results in JSON format | `sumry data.csv -j` |
+| `--help` | | Show help message and exit | `sumry --help` |
 
 ## Supported Formats
 
